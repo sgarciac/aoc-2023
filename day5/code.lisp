@@ -1,7 +1,8 @@
 (ql:quickload :cl-ppcre)
+(ql:quickload :cl-interval)
 
 (defvar *input* nil)
-(defstruct almanac seeds maps)
+(defstruct almanac seeds type-to-type type-to-ranges)
 (defun tokey (string) (intern (string-upcase string) "KEYWORD"))
 (defun parse-seeds (line) (mapcar #'parse-integer (cl-ppcre:split " " (subseq line 7))))
 (defun parse-map-header (line) (let ((name (cl-ppcre:split "-" (car (cl-ppcre:split " " line))))) (cons (tokey (first name)) (tokey (third name)))))
@@ -17,11 +18,34 @@
                         collect (parse-range line))))
       (make-map-block :header header :ranges ranges))))
 
+(defstruct segments
+  interval-to-range
+  intervals)
+
 (defun read-input (stream)
-  (make-almanac :seeds (parse-seeds (read-line stream))
-                :maps
-                (loop for block = (read-map-block stream) then (read-map-block stream)
-                            while block collect block)))
+  (let ((seeds (parse-seeds (read-line stream)))
+        (maps (loop for block = (read-map-block stream) then (read-map-block stream)
+                    while block collect block)))
+    (make-almanac :seeds seeds
+                  :type-to-type (let ((table (make-hash-table)))
+                                  (loop for block in maps
+                                        do (setf (gethash (car (map-block-header block)) table)
+                                                 (cdr (map-block-header block))))
+                                  table)
+                  :type-to-ranges (let ((table (make-hash-table)))
+                                    (loop
+                                      for block in maps
+                                      do (setf (gethash (car (map-block-header block)) table)
+                                               (loop with interval-to-range = (make-hash-table :test 'equal)
+                                                       with intervals = (interval:make-tree)
+                                                     for range in (map-block-ranges block)
+                                                     do (let ((interval (cons (range-s range) (1- (+ (range-l range) (range-s range)) ))))
+                                                          (interval:insert intervals interval)
+                                                          (setf (gethash interval interval-to-range ) range))
+                                                     finally (return (make-segments :intervals intervals :interval-to-range interval-to-range)))))
+                                    table))))
+
+
 ;; an item: value and type
 (defstruct item v t)
 
@@ -30,10 +54,15 @@
   (let* (
          (value (item-v item))
          (type (item-t item))
-         (map (find-if (lambda (b) (eq type (car (map-block-header b)))) (almanac-maps almanac))))
-    (when map (let* ((range (find-if (lambda (r) (and (>= value (range-s r)) (< value (+ (range-l r)(range-s r))))) (map-block-ranges map)))
-                   (destination-value (if range (+ (range-d range) (- value (range-s range))) value)))
-              (make-item :v destination-value :t (cdr (map-block-header map)))))))
+         (destination-type (gethash type (almanac-type-to-type almanac)))
+         (segments (gethash type (almanac-type-to-ranges almanac))))
+    (when destination-type
+      (let* ((interval-all (interval:find-all (segments-intervals segments) value))
+             (interval (when interval-all (first interval-all)))
+             (range (when interval (gethash (cons (interval:interval-start interval) (interval:interval-end interval)) (segments-interval-to-range segments))))
+             (destination-value (if range (+ (range-d range) (- value (range-s range))) value)))
+        (make-item :v destination-value :t destination-type)))))
+
 
 (defun find-final-destination (item almanac)
   (let ((destination (find-destination item almanac)))
@@ -50,6 +79,8 @@
 ;;(load-input "test-input")
 (load-input "input")
 
+(find-destination (make-item :v 52 :t :SEED) *input*)
+
 (solve *input*)
 
 (defun solve2 (almanac)
@@ -59,12 +90,11 @@
                          minimizing
                          (item-v (find-final-destination (make-item :v (+ s i) :t :SEED) almanac)))))
 
+;;(load-input "test-input")
 
-
-(load-input "test-input")
 (load-input "input")
 
-(solve2 *input*)
+(time (solve2 *input*))
 
 (let ((list '(1 2 3 4)))
   (loop :for (a b) :on list :by #'cddr :while b
