@@ -14,9 +14,6 @@
                `(values (/r (+r ,x ,y) ,z) (/r (-r ,x ,y) ,z))))
     (plus-or-minus-div (-r b) (sqrt-r (-r (*r b b) (*r 4 a c))) (*r 2 a))))
 
-(quadratic -1 7 -9)
-(find-min-max 9 7)
-
 (defun find-min-max (distance max-time)
   "find the min and max values that gets you further than distance"
   (multiple-value-bind (min max) (quadratic -1 max-time (*r -1 distance))
