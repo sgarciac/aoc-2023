@@ -30,20 +30,16 @@
           0
           (+ (f initial col (1+ row)) (f initial (1- col) row)))))
 
-;;; part 1
-(with-open-file (stream "input")
-  (loop
-    for line = (read-line stream nil)
-    while line
-    summing (let* ((parts (cl-ppcre:split " " line))
-                   (initial (make-array (length parts) :initial-contents (mapcar #'parse-integer parts))))
-              (f initial (length initial) 0))))
+(defun read-input(file)
+  (with-open-file (stream file)
+    (loop
+      for l = (read-line stream nil)
+      while l
+      collecting (let* ((parts (cl-ppcre:split " " l)))
+                   (make-array (length parts) :initial-contents (mapcar #'parse-integer parts))))))
 
-;;part 2
-(with-open-file (stream "input")
-  (loop
-    for line = (read-line stream nil)
-    while line
-    summing (let* ((parts (reverse (cl-ppcre:split " " line)))
-                   (initial (make-array (length parts) :initial-contents (mapcar #'parse-integer parts))))
-              (f initial (length initial) 0))))
+;; part 1
+(loop for vector in (read-input "input") summing (f vector (length vector) 0))
+
+;; part 2
+(loop for vector in (read-input "input") summing (f (reverse vector) (length vector) 0))
