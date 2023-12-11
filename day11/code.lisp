@@ -22,17 +22,17 @@
 
 (defun in-set(item set) (gethash item set))
 
+(defun empty-lines-between(cell1 cell2 set f)
+  (let ((max (max (funcall f cell1) (funcall f cell2)))
+        (min (min (funcall f cell1) (funcall f cell2))))
+    (loop for index from min upto max
+          counting (not (in-set index set)))))
+
 (defun empty-rows-between(cell1 cell2 rows-set)
-  (let ((max (max (row cell1) (row cell2)))
-        (min (min (row cell1) (row cell2))))
-    (loop for row from min upto max
-          counting (not (in-set row rows-set)))))
+  (empty-lines-between cell1 cell2 rows-set #'row))
 
 (defun empty-cols-between(cell1 cell2 cols-set)
-  (let ((max (max (col cell1) (col cell2)))
-        (min (min (col cell1) (col cell2))))
-    (loop for col from min upto max
-          counting (not (in-set col cols-set)))))
+  (empty-lines-between cell1 cell2 cols-set #'col))
 
 (defun distance(cell1 cell2 expansion rows-set cols-set)
   (let* ((simple-y-distance (abs (- (row cell1) (row cell2))))
