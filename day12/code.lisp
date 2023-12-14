@@ -14,37 +14,37 @@
          (sizes (mapcar #'parse-integer (cl-ppcre:split "," (cadr parts)))))
     (values (loop for c across (car parts) collect c) sizes)))
 
+;; consume methods return whether or not the consumption is possible, and the items left if possible AND the number of consumed unknown
+(defun consume-good-or-unknown (items count unknown-consumed)
+  (cond ((zerop count) (values t items unknown-consumed))
+        ((not items) (values nil nil nil))
+        ((good-p (car items)) (consume-good-or-unknown (cdr items) (1- count) unknown-consumed))
+        ((unknown-p (car items)) (consume-good-or-unknown (cdr items) (1- count) (1+ unknown-consumed)))
+        (t (values nil nil nil))))
 
+(defun consume-broken-or-unknown (items count unknown-consumed)
+  (cond ((zerop count) (values t items unknown-consumed))
+        ((not items) (values nil nil nil))
+        ((broken-p (car items)) (consume-broken-or-unknown (cdr items) (1- count) unknown-consumed))
+        ((unknown-p (car items)) (consume-broken-or-unknown (cdr items) (1- count) (1+ unknown-consumed)))
+        (t (values nil nil nil))))
 
-;; consume methods return whether or not the consumption is possible, and the items left if possible
-(defun consume-good-or-unknown (items count)
-  (cond ((zerop count) (values t items))
-        ((not items) (values nil nil))
-        ((not (good-or-unknown-p (car items))) (values nil nil))
-        (t (consume-good-or-unknown (cdr items) (1- count)))))
-
-(defun consume-broken-or-unknown (items count)
-  (cond ((zerop count) (values t items))
-        ((not items) (values nil nil))
-        ((not (broken-or-unknown-p (car items))) (values nil nil))
-        (t (consume-broken-or-unknown (cdr items) (1- count)))))
-
-(defun still-valid (items sizes)
-  (loop for )
-  )
+(defun still-valid (items sizes memo)
+  (<= (- (reduce #'+ sizes) (count #\# items)) (count #\? items)))
 
 (defun count-solutions (items sizes)
-  (if (not sizes) 1
-                    (multiple-value-bind (result-space left-space) (consume-good-or-unknown items 1)
-                      (if result-space ;; can consume the separator
-                          (+
-                           (multiple-value-bind (result left) (consume-broken-or-unknown left-space (car sizes))
-                             (if result
-                                 (count-solutions left (cdr sizes))
-                                 0))
-                           (count-solutions (cdr items) sizes))
-                          0
-                          ))))
+  (cond ((not sizes) 1)
+       ;; ((not (still-valid items sizes)) 0)
+        (t (multiple-value-bind (result-space left-space) (consume-good-or-unknown items 1 0)
+             (if result-space ;; can consume the separator
+                 (+
+                  (multiple-value-bind (result left) (consume-broken-or-unknown left-space (car sizes) 0)
+                    (if result
+                        (count-solutions left (cdr sizes) )
+                        0))
+                  (count-solutions (cdr items) sizes))
+                 0
+                 )))))
 
 
 (defun mult_sizes (l) (concatenate 'list (copy-seq l) (copy-seq l) (copy-seq l) (copy-seq l) (copy-seq l)))
@@ -61,10 +61,10 @@
 (time (with-open-file (stream "input")
         (loop for line = (read-line stream nil)
               while line
-              do (format t "~A => ~A~%" line (multiple-value-bind (items sizes) (read-springs line) (count-solutions
-                                                                                                     (cons #\.
-                                                                                                           items)
-                                                                                                     sizes)))
+              ;do (format t "~A => ~A~%" line (multiple-value-bind (items sizes) (read-springs line) (count-solutions
+   ;                                                                                                  (cons #\.
+    ;                                                                                                       items)
+     ;                                                                                                sizes)))
               summing (multiple-value-bind (items sizes) (read-springs line) (count-solutions
                                                                               (cons #\.
                                                                                     items)
